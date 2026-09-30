@@ -1,10 +1,33 @@
 // Real-Time Alert & AWS Telemetry WebSocket Client with automatic reconnection and Native Browser Notifications
+import { API_BASE_URL } from './api';
 
-const WS_BASE_URL =
-  import.meta.env.VITE_WS_URL ||
-  (typeof window !== 'undefined'
-    ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8000/ws/alerts`
-    : 'ws://localhost:8000/ws/alerts');
+/**
+ * Derives the WebSocket URL directly from the backend API URL:
+ * - https://weathergpt-backend-tm6r.onrender.com -> wss://weathergpt-backend-tm6r.onrender.com/ws/alerts
+ * - http://localhost:8000 -> ws://localhost:8000/ws/alerts
+ *
+ * NOTE: Never uses window.location.hostname/host to prevent connecting to the Vercel frontend domain!
+ */
+export function getWebSocketUrl(apiUrl = API_BASE_URL) {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
+
+  const base = (apiUrl || 'http://localhost:8000').replace(/\/+$/, '');
+
+  if (base.startsWith('https://')) {
+    return base.replace(/^https:\/\//i, 'wss://') + '/ws/alerts';
+  } else if (base.startsWith('http://')) {
+    return base.replace(/^http:\/\//i, 'ws://') + '/ws/alerts';
+  } else if (base.startsWith('wss://') || base.startsWith('ws://')) {
+    return base.endsWith('/ws/alerts') ? base : `${base}/ws/alerts`;
+  }
+
+  return `ws://${base}/ws/alerts`;
+}
+
+const WS_BASE_URL = getWebSocketUrl();
+
 
 class AlertSocketService {
   constructor() {

@@ -1,5 +1,19 @@
-// API service client connecting to FastAPI backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Determine backend API URL:
+// 1. Explicit environment variable (VITE_API_URL) if set
+// 2. In production (e.g. Vercel deployment), fallback to Render backend: https://weathergpt-backend-tm6r.onrender.com
+// 3. In local development, fallback to: http://localhost:8000
+const isProduction =
+  import.meta.env.PROD ||
+  (typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1');
+
+const DEFAULT_API_URL = isProduction
+  ? 'https://weathergpt-backend-tm6r.onrender.com'
+  : 'http://localhost:8000';
+
+const rawApiUrl = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
+export const API_BASE_URL = rawApiUrl.replace(/\/+$/, '');
 
 class ApiService {
   constructor(baseUrl) {
