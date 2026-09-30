@@ -1,0 +1,69 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: weathergpt-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://localhost:27017/weathergpt}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-weathergpt}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      - OPENWEATHER_KEY=${OPENWEATHER_KEY:-}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000}
+      - MQTT_BROKER_HOST=${MQTT_BROKER_HOST:-mosquitto}
+      - MQTT_BROKER_PORT=${MQTT_BROKER_PORT:-1883}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - weathergpt-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+    container_name: weathergpt-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - weathergpt-network
+
+  # Optional local Mosquitto MQTT Broker (activated via --profile mqtt)
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: weathergpt-mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    profiles:
+      - mqtt
+      - all
+    networks:
+      - weathergpt-network
+
+networks:
+  weathergpt-network:
+    driver: bridge
